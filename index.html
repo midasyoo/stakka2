@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="STAKKA 2">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<title>STAKKA 2 — 달까지 쌓아라</title>
+<meta name="description" content="작은 별이 달을 만나러 하늘로 탑을 쌓아 올린다. 10개의 하늘 구역, 방해물을 피해 쌓아라.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="STAKKA 2">
+<meta property="og:title" content="STAKKA 2 — 달까지 쌓아라">
+<meta property="og:description" content="10개의 하늘 구역을 지나 달까지. 방해물을 피해 탑을 쌓아라.">
+<meta property="og:image" content="https://midasyoo.github.io/stakka2/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://midasyoo.github.io/stakka2/">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;background:#0b1020;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    color:#fff;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+    touch-action:none;overscroll-behavior:none}
+  #c{position:fixed;inset:0;display:block;width:100%;height:100%}
+  .ui{position:fixed;inset:0;pointer-events:none;display:flex;flex-direction:column;align-items:center}
+
+  /* ── HUD ── */
+  #hud{margin-top:calc(env(safe-area-inset-top,0px) + 16px);text-align:center;transition:opacity .25s;width:100%}
+  #lvrow{display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:800;letter-spacing:1px;color:#9fb4d8}
+  #lvchip{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:3px 10px;color:#fff}
+  #lvname{color:#cfe0ff}
+  #progwrap{margin:8px auto 0;width:min(220px,52vw);height:7px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden}
+  #progbar{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#ffd76a,#ff9d5c);transition:width .2s}
+  #score{margin-top:6px;font-size:clamp(50px,15vw,76px);font-weight:900;letter-spacing:-3px;line-height:.9;
+    text-shadow:0 6px 30px rgba(0,0,0,.6);font-variant-numeric:tabular-nums;transition:transform .13s cubic-bezier(.2,1.6,.4,1)}
+  #combo{margin-top:4px;font-size:14px;font-weight:800;letter-spacing:2px;opacity:0;
+    color:#ffd76a;text-shadow:0 0 18px rgba(255,196,64,.85);transition:opacity .12s}
+  #combo.on{opacity:1}
+
+  /* ── 레벨 배너 ── */
+  #banner{position:absolute;top:30%;left:0;right:0;text-align:center;opacity:0;pointer-events:none;
+    transform:translateY(12px);transition:opacity .3s,transform .3s}
+  #banner.show{opacity:1;transform:translateY(0)}
+  #banner .b1{font-size:15px;font-weight:900;letter-spacing:6px;color:#ffd76a;text-shadow:0 0 22px rgba(255,200,80,.7)}
+  #banner .b2{margin-top:6px;font-size:clamp(26px,8vw,42px);font-weight:900;letter-spacing:-1px}
+  #banner .b3{margin-top:8px;font-size:14px;font-weight:700;color:#cfe0ff}
+
+  /* ── 패널 ── */
+  .panel{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:0 26px;text-align:center;opacity:0;pointer-events:none;transition:opacity .28s ease;
+    background:radial-gradient(ellipse 80% 46% at 50% 46%,rgba(9,13,26,.93) 0%,rgba(9,13,26,.62) 58%,rgba(9,13,26,0) 84%)}
+  .panel.show{opacity:1}
+  #menu{padding-bottom:6vh}
+  #over{padding-bottom:14vh}
+  #win{padding-bottom:10vh}
+  .logo{font-size:clamp(48px,15vw,104px);font-weight:900;letter-spacing:-5px;line-height:.86;
+    background:linear-gradient(180deg,#fff 14%,#ffd76a 60%,#ff8e6a 100%);-webkit-background-clip:text;background-clip:text;
+    color:transparent;filter:drop-shadow(0 10px 42px rgba(255,170,90,.5))}
+  .sub{font-size:13px;font-weight:700;letter-spacing:4px;color:#9fb4d8;margin-top:4px}
+  .how{margin-top:22px;font-size:14.5px;line-height:1.85;color:#cdd9f0;font-weight:600}
+  .how b{color:#ffd76a}
+  .tap{margin-top:26px;font-size:16px;font-weight:900;letter-spacing:2px;
+    padding:14px 30px;border:2px solid rgba(255,255,255,.28);border-radius:999px;
+    background:rgba(255,255,255,.07);animation:pulse 1.5s ease-in-out infinite;pointer-events:none}
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:.82}50%{transform:scale(1.06);opacity:1}}
+  .meta{margin-top:18px;font-size:12px;font-weight:800;letter-spacing:3px;color:#7f8fb3}
+  .meta b{color:#ffd76a;font-size:16px}
+  .pips{margin-top:14px;display:flex;gap:6px}
+  .pip{width:16px;height:5px;border-radius:999px;background:rgba(255,255,255,.14)}
+  .pip.on{background:#ffd76a}
+  .btn{pointer-events:auto;cursor:pointer;margin-top:12px;font-size:15px;font-weight:900;letter-spacing:1px;
+    padding:13px 26px;border-radius:999px;border:2px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff}
+  .btn.primary{background:linear-gradient(180deg,#ffd76a,#ff9d5c);color:#1a1205;border-color:transparent;
+    box-shadow:0 8px 30px rgba(255,160,80,.4)}
+  #over .big{font-size:18px;font-weight:900;letter-spacing:6px;color:#ff6b8a}
+  #over .num{font-size:clamp(56px,18vw,86px);font-weight:900;letter-spacing:-4px;line-height:1;font-variant-numeric:tabular-nums}
+  #over .lbl{font-size:11px;font-weight:800;letter-spacing:4px;color:#7f8fb3;margin-top:2px}
+  #win .big{font-size:16px;font-weight:900;letter-spacing:6px;color:#ffd76a}
+  #win .num{font-size:clamp(48px,15vw,76px);font-weight:900;letter-spacing:-3px;line-height:1;
+    background:linear-gradient(180deg,#fff,#ffd76a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  #mute{position:fixed;right:14px;top:calc(env(safe-area-inset-top,0px) + 14px);
+    width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;
+    font-size:18px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    cursor:pointer;opacity:.5;z-index:5}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="ui">
+  <div id="hud">
+    <div id="lvrow"><span id="lvchip">LV 1</span><span id="lvname">동네 지붕</span></div>
+    <div id="progwrap"><div id="progbar"></div></div>
+    <div id="score">0</div>
+    <div id="combo">PERFECT ×0</div>
+  </div>
+
+  <div id="banner">
+    <div class="b1" id="bn1">LEVEL 1</div>
+    <div class="b2" id="bn2">동네 지붕</div>
+    <div class="b3" id="bn3"></div>
+  </div>
+
+  <div class="panel show" id="menu">
+    <div class="logo">STAKKA 2</div>
+    <div class="sub">달까지 쌓아라</div>
+    <div class="how">
+      탭으로 블록을 쌓아 <b>달</b>까지 올라가자<br>
+      <b>방해물</b>이 탑을 가로지를 땐 — 쌓지 말고 기다려!
+    </div>
+    <div class="tap">탭해서 시작</div>
+    <div class="pips" id="menuPips"></div>
+    <div class="meta">최고 레벨 <b id="menuMax">1</b> / 10</div>
+  </div>
+
+  <div class="panel" id="over">
+    <div class="big">TOWER DOWN</div>
+    <div class="num" id="overLv">LV 1</div>
+    <div class="lbl">도달한 레벨</div>
+    <div class="btn primary" id="btnRetry">이 레벨 다시</div>
+    <div class="btn" id="btnFrom1">처음부터</div>
+  </div>
+
+  <div class="panel" id="win">
+    <div class="big">🌙 달에 도착했다! 🌟</div>
+    <div class="num">CLEAR</div>
+    <div class="lbl">10개의 하늘을 모두 통과했다</div>
+    <div class="btn primary" id="btnAgain">다시 플레이</div>
+  </div>
+</div>
+<div id="mute">🔊</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ═══════════ utils ═══════════ */
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp  = (a, b, t) => a + (b - a) * t;
+const rnd   = (a, b) => a + Math.random() * (b - a);
+
+/* ═══════════ canvas ═══════════ */
+const cvs = document.getElementById('c');
+const ctx = cvs.getContext('2d', { alpha: false });
+let W = 0, H = 0, DPR = 1, VS = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 3);
+  W = cvs.clientWidth || window.innerWidth;
+  H = cvs.clientHeight || window.innerHeight;
+  cvs.width  = Math.max(1, Math.round(W * DPR));
+  cvs.height = Math.max(1, Math.round(H * DPR));
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  VS = clamp(Math.min(W, H * 0.72) / 430, 0.62, 2.1);
+}
+addEventListener('resize', resize, { passive: true });
+addEventListener('orientationchange', () => setTimeout(resize, 150), { passive: true });
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize, { passive: true });
+
+/* ═══════════ tuning ═══════════ */
+const BASE = 118, BH = 26, IY = 0.5;
+const PERFECT = 4.4, GROW = 5.5, MIN_SIZE = 2.2;
+const AMP = 108;
+const SPD0 = 108, SPD_K = 4.3, SPD_MAX = 378;
+const VIEW_N = 26;
+const ANCHOR = 0.66, ANCHOR_MENU = 0.92;
+const GOAL = 6;                 // 레벨당 필요 층수 → 총 60층 = 달
+const hueFor = lv => (198 + lv * 5.5) % 360;
+
+/* ═══════════ 레벨 구성 (10) ═══════════ */
+// type: null(없음) | fly | walker | diag | rise | strike
+const LV = [
+  { n:'동네 지붕',   h:'탭으로 블록을 쌓아 올려라',         obs:null,                                  top:'#2a5b9c', bot:'#6fb0e6' },
+  { n:'새들의 길',   h:'새가 지나갈 땐 — 쌓지 마!',         obs:{e:'🐦',type:'fly',   spd:135,sz:56,every:2.3}, top:'#276aa6', bot:'#7fb6e8' },
+  { n:'구름 바다',   h:'구름이 덮칠 때 기다려',             obs:{e:'☁️',type:'fly',   spd:78, sz:98,every:2.7}, top:'#3a6fb0', bot:'#a9c8e8' },
+  { n:'연의 축제',   h:'연을 피해 타이밍 맞춰',             obs:{e:'🪁',type:'diag',  spd:120,sz:64,every:2.1,vy:18}, top:'#345fa0', bot:'#9fc0e6' },
+  { n:'풍선 마을',   h:'풍선이 뜰 때 비켜!',                obs:{e:'🎈',type:'rise',  spd:0,  sz:58,every:2.0,vy:-46},top:'#5a4a9c', bot:'#c9a0e0' },
+  { n:'유령의 숲',   h:'유령이 스쳐갈 때 멈춰',             obs:{e:'👻',type:'fly',   spd:118,sz:60,every:1.9}, top:'#243a6b', bot:'#3a5a8c' },
+  { n:'구름 고양이', h:'고양이가 지나갈 때까지 기다려',     obs:{e:'🐱',type:'walker',spd:62, sz:66,every:2.9,pause:1.1}, top:'#1f3560', bot:'#3556a0' },
+  { n:'번개 구름',   h:'번개가 치는 순간 피해!',            obs:{e:'⚡',type:'strike',spd:0,  sz:62,every:2.2}, top:'#15173a', bot:'#2a2f60' },
+  { n:'유성우',      h:'유성을 피해 쌓아 올려',             obs:{e:'☄️',type:'diag',  spd:300,sz:54,every:1.4,vy:80}, top:'#0c1030', bot:'#1a2050' },
+  { n:'달의 곶',     h:'달님을 향해 — 마지막이다!',         obs:{e:'☄️',type:'diag',  spd:240,sz:52,every:1.15,vy:66},top:'#070a20', bot:'#10183c', final:true },
+];
+
+/* ═══════════ state ═══════════ */
+let state = 'menu';
+let blocks = [], mover = null;
+let debris = [], ripples = [], sparks = [], obstacles = [];
+let score = 0, combo = 0;
+let currentLevel = 1;
+let maxLevel = load('stakka2.maxlevel', 1);
+let muted = load('stakka2.mute', 0) === 1;
+let camX = 0, camY = 0, camLv = 0, anchorY = ANCHOR_MENU;
+let shake = 0, flash = 0, overAt = 0, lastT = 0;
+let obsTimer = 0, bannerUntil = 0;
+let mascot = { mood:'idle', bounce:0, spin:0, sweat:0 };
+
+function load(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : (parseInt(v, 10) || 0); } catch (e) { return d; } }
+function save(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} }
+
+/* ═══════════ audio ═══════════ */
+let AC = null;
+function ac() {
+  if (muted) return null;
+  if (!AC) { const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; AC = new A(); }
+  if (AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(freq, dur, type, vol, slide) {
+  const a = ac(); if (!a) return;
+  const t = a.currentTime;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, slide), t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(a.destination);
+  o.start(t); o.stop(t + dur + 0.03);
+}
+const sfxPlace   = ()  => tone(180, 0.10, 'triangle', 0.16, 120);
+const sfxPerfect = n   => { const f = 523.25 * Math.pow(2, Math.min(n, 15) / 12); tone(f, 0.14, 'square', 0.09); tone(f * 2, 0.09, 'sine', 0.05); };
+const sfxFail    = ()  => { tone(220, 0.45, 'sawtooth', 0.15, 55); tone(90, 0.5, 'square', 0.10, 40); };
+const sfxHit     = ()  => { tone(140, 0.18, 'square', 0.18, 70); tone(80, 0.3, 'sawtooth', 0.12, 45); };
+const sfxLevel   = ()  => { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.16, 'triangle', 0.12), i * 90)); };
+const sfxWin     = ()  => { [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => tone(f, 0.22, 'sine', 0.13), i * 140)); };
+const sfxStart   = ()  => { tone(392, 0.09, 'sine', 0.12); setTimeout(() => tone(587, 0.14, 'sine', 0.12), 80); };
+function buzz(p) { if (!muted && navigator.vibrate) { try { navigator.vibrate(p); } catch (e) {} } }
+
+/* ═══════════ dom ═══════════ */
+const $ = id => document.getElementById(id);
+const $score=$('score'), $combo=$('combo'), $hud=$('hud');
+const $lvchip=$('lvchip'), $lvname=$('lvname'), $progbar=$('progbar');
+const $banner=$('banner'), $bn1=$('bn1'), $bn2=$('bn2'), $bn3=$('bn3');
+const $menu=$('menu'), $over=$('over'), $win=$('win');
+const $overLv=$('overLv'), $menuMax=$('menuMax'), $menuPips=$('menuPips');
+const $mute=$('mute');
+$mute.textContent = muted ? '🔇' : '🔊';
+$mute.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault();
+  muted = !muted; save('stakka2.mute', muted ? 1 : 0); $mute.textContent = muted ? '🔇' : '🔊'; });
+
+function pop() { $score.style.transform = 'scale(1.16)'; requestAnimationFrame(() => $score.style.transform = 'scale(1)'); }
+function refreshPips() {
+  $menuPips.innerHTML = '';
+  for (let i = 0; i < 10; i++) { const s = document.createElement('span'); s.className = 'pip' + (i < maxLevel - 1 ? ' on' : ''); $menuPips.appendChild(s); }
+}
+function showBanner(lv) {
+  const cfg = LV[lv - 1];
+  $bn1.textContent = 'LEVEL ' + lv;
+  $bn2.textContent = cfg.n;
+  $bn3.textContent = cfg.h || '';
+  $banner.classList.add('show');
+  bannerUntil = performance.now() + 2200;
+}
+function hideBanner() { $banner.classList.remove('show'); }
+function updateHUD() {
+  $lvchip.textContent = 'LV ' + currentLevel;
+  $lvname.textContent = LV[currentLevel - 1].n;
+  const into = score - (currentLevel - 1) * GOAL;
+  $progbar.style.width = clamp(into / GOAL, 0, 1) * 100 + '%';
+  $score.textContent = score;
+  $menuMax.textContent = maxLevel;
+}
+
+/* ═══════════ flow ═══════════ */
+function buildFoundation(level) {
+  blocks = [{ x: -BASE / 2, z: -BASE / 2, w: BASE, d: BASE, level: 0, hue: hueFor(0), sq: 0 }];
+  const upto = (level - 1) * GOAL;
+  for (let i = 1; i <= upto; i++) {
+    const p = blocks[blocks.length - 1];
+    const off = rnd(-7, 7);
+    if (i % 2 === 1) blocks.push({ x: p.x + off, z: p.z, w: BASE, d: BASE, level: i, hue: hueFor(i), sq: 0 });
+    else blocks.push({ x: p.x, z: p.z + off, w: BASE, d: BASE, level: i, hue: hueFor(i), sq: 0 });
+  }
+}
+function startLevel(level) {
+  currentLevel = clamp(level, 1, 10);
+  buildFoundation(currentLevel);
+  debris = []; ripples = []; sparks = []; obstacles = [];
+  combo = 0; mover = null; shake = 0; flash = 0; obsTimer = 0;
+  score = blocks[blocks.length - 1].level;
+  snapCam();
+  spawn();
+  updateHUD();
+  showBanner(currentLevel);
+  $combo.classList.remove('on');
+}
+function startGame() {
+  startLevel(1);
+  state = 'play';
+  $menu.classList.remove('show'); $over.classList.remove('show'); $win.classList.remove('show');
+  $hud.style.opacity = '1';
+  sfxStart();
+}
+function retryLevel() { startLevel(currentLevel); state = 'play'; $over.classList.remove('show'); $hud.style.opacity = '1'; }
+function restartFrom1() { startLevel(1); state = 'play'; $over.classList.remove('show'); $win.classList.remove('show'); $hud.style.opacity = '1'; }
+
+function spawn() {
+  const p = blocks[blocks.length - 1];
+  const level = p.level + 1;
+  const axis = (level % 2 === 1) ? 'x' : 'z';
+  mover = {
+    x: p.x, z: p.z, w: p.w, d: p.d, level, axis, dir: 1,
+    hue: hueFor(level), speed: Math.min(SPD0 + level * SPD_K, SPD_MAX)
+  };
+  if (axis === 'x') mover.x = p.x - AMP; else mover.z = p.z - AMP;
+}
+
+function moverExt() {
+  if (!mover) return null;
+  const hTop = mover.level * BH + BH;
+  const cs = [[mover.x, mover.z], [mover.x + mover.w, mover.z], [mover.x + mover.w, mover.z + mover.d], [mover.x, mover.z + mover.d]]
+    .map(([px, pz]) => w2s(px, pz, hTop));
+  const xs = cs.map(c => c.x), ys = cs.map(c => c.y);
+  const minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
+  const minY = Math.min.apply(null, ys);
+  return { minX, maxX, cy: minY, cx: (minX + maxX) / 2 };
+}
+
+function place() {
+  if (!mover) return;
+  // 방해물 회피 검사
+  const dang = inDanger();
+  if (dang) { hitFail(dang); return; }
+
+  const p = blocks[blocks.length - 1];
+  const ax = mover.axis;
+  const cur = ax === 'x' ? mover.x : mover.z;
+  const pv  = ax === 'x' ? p.x : p.z;
+  const size = ax === 'x' ? p.w : p.d;
+  const delta = cur - pv, ad = Math.abs(delta);
+  const overlap = size - ad;
+  if (overlap <= MIN_SIZE) { fail(); return; }
+
+  let pos, sz, perfect = false;
+  const tol = Math.min(PERFECT, size * 0.28);
+  if (ad <= tol) {
+    perfect = true; combo++;
+    sz = Math.min(size + (combo >= 2 ? GROW : 0), BASE);
+    pos = pv - (sz - size) / 2;
+  } else {
+    combo = 0;
+    pos = Math.max(pv, cur); sz = overlap;
+    const dPos = delta > 0 ? (pv + size) : cur;
+    debris.push({
+      x: ax === 'x' ? dPos : p.x, z: ax === 'z' ? dPos : p.z,
+      w: ax === 'x' ? ad : p.w, d: ax === 'z' ? ad : p.d,
+      h: mover.level * BH, vy: rnd(25, 65), vp: (delta > 0 ? 1 : -1) * rnd(45, 85),
+      ax, hue: mover.hue, a: 1, t: 0
+    });
+  }
+  const nb = {
+    x: ax === 'x' ? pos : p.x, z: ax === 'z' ? pos : p.z,
+    w: ax === 'x' ? sz : p.w, d: ax === 'z' ? sz : p.d,
+    level: mover.level, hue: mover.hue, sq: 1
+  };
+  blocks.push(nb);
+  score = nb.level;
+
+  if (perfect) {
+    ripples.push({ x: nb.x + nb.w / 2, z: nb.z + nb.d / 2, level: nb.level, r: 0, a: 1, big: combo >= 3 });
+    burst(nb, combo);
+    shake = Math.min(3 + combo * 1.1, 12);
+    flash = Math.min(0.09 + combo * 0.02, 0.28);
+    sfxPerfect(combo); buzz(combo >= 3 ? 24 : 12);
+    $combo.textContent = 'PERFECT ×' + combo; $combo.classList.add('on');
+    mascot.bounce = 1; mascot.spin = 1;
+  } else {
+    shake = Math.max(shake, 2.2); sfxPlace();
+    $combo.classList.remove('on');
+  }
+  pop();
+  updateHUD();
+
+  // 레벨 클리어 / 승리
+  if (score >= currentLevel * GOAL) {
+    if (currentLevel >= 10) { winGame(); return; }
+    currentLevel++;
+    maxLevel = Math.max(maxLevel, currentLevel);
+    save('stakka2.maxlevel', maxLevel);
+    obstacles = []; obsTimer = 0;
+    flash = 0.4; shake = Math.max(shake, 6);
+    sfxLevel(); buzz([20, 40, 60]);
+    updateHUD();
+    showBanner(currentLevel);
+  }
+  spawn();
+}
+
+function burst(b, n) {
+  const cx = b.x + b.w / 2, cz = b.z + b.d / 2;
+  for (let i = 0, c = Math.min(8 + n * 3, 34); i < c; i++) {
+    const a = Math.random() * Math.PI * 2, s = rnd(60, 260);
+    sparks.push({ X: cx - cz, Y: (cx + cz) * IY - (b.level * BH + BH),
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s - 70, a: 1, sz: rnd(1.6, 4.2), hue: b.hue + rnd(-20, 40) });
+  }
+}
+
+function hitFail(o) {
+  // 방해물에 맞음 → 레벨 재시작
+  sfxHit(); sfxFail(); buzz([30, 50, 70]);
+  shake = 16; flash = 0.3;
+  debris.push({ x: mover.x, z: mover.z, w: mover.w, d: mover.d,
+    h: mover.level * BH, vy: 40, vp: rnd(-60, 60), ax: mover.axis, hue: mover.hue, a: 1, t: 0 });
+  mover = null;
+  $combo.classList.remove('on');
+  state = 'over'; overAt = performance.now();
+  $overLv.textContent = 'LV ' + currentLevel;
+  setTimeout(() => { if (state === 'over') { $over.classList.add('show'); $hud.style.opacity = '0'; hideBanner(); } }, 360);
+}
+
+function fail() {
+  sfxFail(); buzz([30, 40, 60]);
+  shake = 14; flash = 0.22;
+  debris.push({ x: mover.x, z: mover.z, w: mover.w, d: mover.d,
+    h: mover.level * BH, vy: 0, vp: 0, ax: mover.axis, hue: mover.hue, a: 1, t: 0 });
+  mover = null; $combo.classList.remove('on');
+  state = 'over'; overAt = performance.now();
+  $overLv.textContent = 'LV ' + currentLevel;
+  setTimeout(() => { if (state === 'over') { $over.classList.add('show'); $hud.style.opacity = '0'; hideBanner(); } }, 360);
+}
+
+function winGame() {
+  state = 'win'; mover = null;
+  sfxWin(); buzz([20, 40, 60, 80]);
+  maxLevel = 10; save('stakka2.maxlevel', 10);
+  flash = 0.5;
+  for (let i = 0; i < 80; i++) {
+    const a = Math.random() * Math.PI * 2, s = rnd(80, 360);
+    sparks.push({ X: rnd(-W / 2, W / 2), Y: rnd(-H, 0),
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s, a: 1.4, sz: rnd(2, 5), hue: rnd(30, 60) });
+  }
+  setTimeout(() => { $win.classList.add('show'); $hud.style.opacity = '0'; hideBanner(); }, 500);
+}
+
+/* ═══════════ obstacles ═══════════ */
+function topCenterScreen() {
+  const b = mover || blocks[blocks.length - 1];
+  const h = b.level * BH + BH;
+  return w2s(b.x + b.w / 2, b.z + b.d / 2, h);
+}
+
+function spawnObs() {
+  const cfg = LV[currentLevel - 1].obs;
+  if (!cfg) return;
+  const fromLeft = Math.random() < 0.5;
+  const o = { e: cfg.e, sz: cfg.sz, type: cfg.type, t: 0, active: true, hitW: cfg.sz * 0.78 };
+  const tc = topCenterScreen();
+  if (cfg.type === 'strike') {
+    o.x = rnd(W * 0.18, W * 0.82); o.y = tc.y; o.phase = 'warn'; o.tw = 0.75; o.hitW = cfg.sz * 1.5;
+  } else if (cfg.type === 'rise') {
+    o.x = rnd(W * 0.15, W * 0.85); o.y = H + cfg.sz; o.vx = rnd(-12, 12); o.vy = cfg.vy;
+  } else if (cfg.type === 'diag') {
+    o.x = fromLeft ? -cfg.sz : W + cfg.sz; o.y = tc.y - 240;
+    o.vx = (fromLeft ? 1 : -1) * cfg.spd; o.vy = cfg.vy || 40;
+  } else if (cfg.type === 'walker') {
+    o.x = fromLeft ? -cfg.sz : W + cfg.sz; o.y = tc.y; o.vx = (fromLeft ? 1 : -1) * cfg.spd;
+    o.pauseT = cfg.pause; o.pausing = 0;
+  } else { // fly
+    o.x = fromLeft ? -cfg.sz : W + cfg.sz; o.y = tc.y; o.vx = (fromLeft ? 1 : -1) * cfg.spd;
+  }
+  obstacles.push(o);
+}
+
+function updateObs(dt) {
+  const cfg = LV[currentLevel - 1].obs;
+  if (cfg && state === 'play' && performance.now() > bannerUntil - 1400) {
+    obsTimer += dt;
+    if (obsTimer >= cfg.every) { obsTimer = 0; spawnObs(); }
+  }
+  const tc = topCenterScreen();
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const o = obstacles[i]; o.t += dt;
+    if (o.type === 'strike') {
+      o.y = tc.y;
+      if (o.phase === 'warn') { o.tw -= dt; if (o.tw <= 0) { o.phase = 'strike'; o.ts = 0.32; } }
+      else if (o.phase === 'strike') { o.ts -= dt; if (o.ts <= 0) o.active = false; }
+    } else if (o.type === 'fly' || o.type === 'walker') {
+      o.y = tc.y;
+      if (o.type === 'walker' && o.pausing > 0) { o.pausing -= dt; }
+      else { o.x += o.vx * dt; if (o.type === 'walker' && Math.abs(o.x - W / 2) < 14 && o.pausing <= 0 && o.pauseT) o.pausing = o.pauseT; }
+    } else { // diag / rise
+      o.x += o.vx * dt; o.y += o.vy * dt;
+    }
+    if (!o.active || o.x < -160 || o.x > W + 160 || o.y < -320 || o.y > H + 320) obstacles.splice(i, 1);
+  }
+}
+
+function inDanger() {
+  if (!mover) return null;
+  const m = moverExt(); if (!m) return null;
+  const tc = topCenterScreen();
+  for (const o of obstacles) {
+    if (!o.active) continue;
+    if (o.type === 'strike' && o.phase !== 'strike') continue;
+    let nearY = true;
+    if (o.type === 'diag' || o.type === 'rise') nearY = Math.abs(o.y - tc.y) < o.sz;
+    if (!nearY) continue;
+    const ox1 = o.x - o.hitW / 2, ox2 = o.x + o.hitW / 2;
+    if (ox2 > m.minX && ox1 < m.maxX) return o;
+  }
+  return null;
+}
+
+/* ═══════════ input ═══════════ */
+function tap() {
+  if (state === 'menu') return startGame();
+  if (state === 'play') return place();
+  if (state === 'over' && performance.now() - overAt > 480) return retryLevel();
+  if (state === 'win') return restartFrom1();
+}
+addEventListener('pointerdown', e => {
+  if (e.target.closest('.btn') || e.target.closest('#mute')) return;
+  e.preventDefault(); tap();
+}, { passive: false });
+addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'Enter' || e.code === 'ArrowDown') { e.preventDefault(); tap(); }
+}, { passive: false });
+addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('visibilitychange', () => { if (!document.hidden) lastT = performance.now(); });
+$('btnRetry').addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); retryLevel(); });
+$('btnFrom1').addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); restartFrom1(); });
+$('btnAgain').addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); restartFrom1(); });
+
+/* ═══════════ camera & projection ═══════════ */
+function camGoal() {
+  const b = blocks[blocks.length - 1];
+  const cx = b.x + b.w / 2, cz = b.z + b.d / 2;
+  return { X: cx - cz, Y: (cx + cz) * IY - b.level * BH, L: b.level };
+}
+function snapCam() { const g = camGoal(); camX = g.X; camY = g.Y; camLv = g.L; }
+// 로직용(흔들림 없음)
+function w2s(x, z, h) {
+  const X = x - z, Y = (x + z) * IY - h;
+  return { x: (X - camX) * VS + W / 2, y: (Y - camY) * VS + H * anchorY };
+}
+function px(x, z, h) { return { X: x - z, Y: (x + z) * IY - h }; }
+
+/* ═══════════ render helpers ═══════════ */
+function quad(a, b, c, d, fill) {
+  ctx.beginPath(); ctx.moveTo(a.X, a.Y); ctx.lineTo(b.X, b.Y); ctx.lineTo(c.X, c.Y); ctx.lineTo(d.X, d.Y);
+  ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+}
+function drawBox(x, z, w, d, hBot, hTop, hue, alpha, hi) {
+  if (alpha <= 0) return;
+  const A = px(x, z, hTop), B = px(x + w, z, hTop), C = px(x + w, z + d, hTop), D = px(x, z + d, hTop);
+  const Bb = px(x + w, z, hBot), Cb = px(x + w, z + d, hBot), Db = px(x, z + d, hBot);
+  ctx.globalAlpha = alpha;
+  quad(B, C, Cb, Bb, `hsl(${hue} 62% 41%)`);
+  quad(D, C, Cb, Db, `hsl(${hue} 60% 28%)`);
+  quad(A, B, C, D, `hsl(${hue} 72% ${hi ? 74 : 60}%)`);
+  if (hi) { ctx.lineWidth = 1.6; ctx.strokeStyle = 'rgba(255,255,255,.9)';
+    ctx.beginPath(); ctx.moveTo(A.X, A.Y); ctx.lineTo(B.X, B.Y); ctx.lineTo(C.X, C.Y); ctx.lineTo(D.X, D.Y);
+    ctx.closePath(); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+}
+
+/* ═══════════ background (테마 + 달) ═══════════ */
+function drawBG() {
+  const cfg = LV[currentLevel - 1];
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, cfg.top); g.addColorStop(1, cfg.bot);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  // 달 — 레벨/높이 갈수록 커지고 가까워진다
+  const moonP = clamp((currentLevel - 1) / 9 + score / 600, 0, 1.1);
+  if (moonP > 0) {
+    const ms = lerp(28, 150, clamp(moonP, 0, 1));
+    const mx = W * 0.5 + lerp(120, 0, clamp(moonP, 0, 1));
+    const my = lerp(120, 150, clamp(moonP, 0, 1));
+    const mg = ctx.createRadialGradient(mx, my, 0, mx, my, ms * 2.2);
+    mg.addColorStop(0, 'rgba(255,250,225,.45)'); mg.addColorStop(1, 'rgba(255,250,225,0)');
+    ctx.fillStyle = mg; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fdf3cf';
+    ctx.beginPath(); ctx.arc(mx, my, ms, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(220,205,150,.5)';
+    ctx.beginPath(); ctx.arc(mx - ms * 0.3, my - ms * 0.2, ms * 0.16, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(mx + ms * 0.22, my + ms * 0.28, ms * 0.12, 0, 7); ctx.fill();
+  }
+  // 별(밤 구역)
+  if (currentLevel >= 6) {
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    const off = ((-camY) * 0.16) % 160;
+    for (let i = 0; i < 54; i++) {
+      const sx = ((i * 97) % 100) / 100 * W;
+      const sy = ((((i * 61) % 100) / 100) * H + off + H) % H;
+      const s = (i % 3) * 0.5 + 0.6; ctx.fillRect(sx, sy, s, s);
+    }
+  }
+}
+
+/* ═══════════ mascot (작은 별) ═══════════ */
+function drawStarShape(cx, cy, r, rot) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const ang = rot + i * Math.PI / 5 - Math.PI / 2;
+    const rad = i % 2 === 0 ? r : r * 0.46;
+    const px2 = cx + Math.cos(ang) * rad, py2 = cy + Math.sin(ang) * rad;
+    i === 0 ? ctx.moveTo(px2, py2) : ctx.lineTo(px2, py2);
+  }
+  ctx.closePath();
+}
+function drawMascot() {
+  const b = blocks[blocks.length - 1];
+  const s = w2s(b.x + b.w / 2, b.z + b.d / 2, b.level * BH + BH);
+  const r = 15 * VS * 1.1 + mascot.bounce * 4;
+  let cx = s.x, cy = s.y - r * 1.5 - mascot.bounce * 8;
+  if (mascot.sweat > 0) cx += Math.sin(performance.now() / 40) * 2.2;
+  const rot = mascot.spin > 0 ? (1 - mascot.spin) * 0.5 : 0;
+  // 그림자/글로우
+  ctx.save();
+  const gl = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 2.4);
+  gl.addColorStop(0, 'rgba(255,220,90,.55)'); gl.addColorStop(1, 'rgba(255,220,90,0)');
+  ctx.fillStyle = gl; ctx.fillRect(cx - r * 3, cy - r * 3, r * 6, r * 6);
+  // 별 몸체
+  drawStarShape(cx, cy, r, rot);
+  const bg = ctx.createLinearGradient(cx, cy - r, cx, cy + r);
+  bg.addColorStop(0, '#fff3a0'); bg.addColorStop(1, '#ffc83a');
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(180,120,0,.35)'; ctx.stroke();
+  // 눈
+  ctx.fillStyle = '#2a1a00';
+  const eye = r * 0.16, ex = r * 0.34, ey = r * 0.04;
+  const scared = mascot.sweat > 0;
+  ctx.beginPath(); ctx.arc(cx - ex, cy + ey, scared ? eye * 1.3 : eye, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + ex, cy + ey, scared ? eye * 1.3 : eye, 0, 7); ctx.fill();
+  // 입
+  ctx.strokeStyle = '#2a1a00'; ctx.lineWidth = 1.6; ctx.beginPath();
+  if (scared) { ctx.arc(cx, cy + r * 0.4, r * 0.14, 0, 7); }
+  else { ctx.arc(cx, cy + r * 0.25, r * 0.22, 0.15 * Math.PI, 0.85 * Math.PI); }
+  ctx.stroke();
+  // 땀
+  if (mascot.sweat > 0) {
+    ctx.fillStyle = '#9fe1ff';
+    ctx.beginPath(); ctx.arc(cx + r * 0.85, cy - r * 0.2, r * 0.14, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ═══════════ update ═══════════ */
+function update(dt) {
+  const g = camGoal();
+  const k = 1 - Math.pow(0.0016, dt);
+  camX = lerp(camX, g.X, k); camY = lerp(camY, g.Y, k); camLv = lerp(camLv, g.L, k);
+  anchorY = lerp(anchorY, state === 'menu' ? ANCHOR_MENU : ANCHOR, 1 - Math.pow(0.02, dt));
+
+  if (state === 'play' && mover) {
+    const p = blocks[blocks.length - 1];
+    const ax = mover.axis, c = ax === 'x' ? p.x : p.z;
+    let v = (ax === 'x' ? mover.x : mover.z) + mover.dir * mover.speed * dt;
+    if (v > c + AMP) { v = c + AMP; mover.dir = -1; }
+    else if (v < c - AMP) { v = c - AMP; mover.dir = 1; }
+    if (ax === 'x') mover.x = v; else mover.z = v;
+  }
+  for (let i = Math.max(0, blocks.length - 4); i < blocks.length; i++) { const b = blocks[i]; if (b.sq > 0) b.sq = Math.max(0, b.sq - dt * 5.2); }
+  for (let i = debris.length - 1; i >= 0; i--) {
+    const d = debris[i]; d.t += dt; d.vy -= 1750 * dt; d.h += d.vy * dt;
+    if (d.ax === 'x') d.x += d.vp * dt; else d.z += d.vp * dt;
+    if (d.t > 0.28) d.a -= dt * 1.15;
+    if (d.a <= 0) debris.splice(i, 1);
+  }
+  for (let i = ripples.length - 1; i >= 0; i--) { const r = ripples[i]; r.r += dt * (r.big ? 430 : 300); r.a -= dt * 1.9; if (r.a <= 0) ripples.splice(i, 1); }
+  for (let i = sparks.length - 1; i >= 0; i--) { const s = sparks[i]; s.vy += 520 * dt; s.X += s.vx * dt; s.Y += s.vy * dt; s.a -= dt * 1.2; if (s.a <= 0) sparks.splice(i, 1); }
+
+  if (state === 'play') updateObs(dt);
+
+  // 마스코트 상태
+  const dang = (state === 'play') ? inDanger() : null;
+  mascot.sweat = dang ? Math.min(1, mascot.sweat + dt * 4) : Math.max(0, mascot.sweat - dt * 2);
+  mascot.bounce = Math.max(0, mascot.bounce - dt * 3);
+  mascot.spin = Math.max(0, mascot.spin - dt * 2.5);
+
+  shake = Math.max(0, shake - dt * 34);
+  flash = Math.max(0, flash - dt * 1.4);
+  if (bannerUntil && performance.now() > bannerUntil) { hideBanner(); bannerUntil = 0; }
+}
+
+/* ═══════════ render ═══════════ */
+function render() {
+  drawBG();
+  const sx = shake ? rnd(-shake, shake) : 0, sy = shake ? rnd(-shake, shake) : 0;
+
+  ctx.save();
+  ctx.translate(W / 2 + sx, H * anchorY + sy);
+  ctx.scale(VS, VS);
+  ctx.translate(-camX, -camY);
+
+  // 바닥 그림자
+  if (blocks.length < VIEW_N - 4) {
+    const b = blocks[0];
+    ctx.globalAlpha = 0.28; ctx.fillStyle = '#000';
+    const A = px(b.x, b.z, -7), B = px(b.x + b.w, b.z, -7), C = px(b.x + b.w, b.z + b.d, -7), D = px(b.x, b.z + b.d, -7);
+    ctx.beginPath(); ctx.moveTo(A.X, A.Y); ctx.lineTo(B.X, B.Y); ctx.lineTo(C.X, C.Y); ctx.lineTo(D.X, D.Y); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  for (const d of debris) drawBox(d.x, d.z, d.w, d.d, d.h, d.h + BH, d.hue, clamp(d.a, 0, 1), false);
+
+  const from = Math.max(0, blocks.length - VIEW_N);
+  for (let i = from; i < blocks.length; i++) {
+    const b = blocks[i]; const bot = b.level * BH;
+    drawBox(b.x, b.z, b.w, b.d, bot, bot + BH * (1 - b.sq * 0.34), b.hue, 1, false);
+  }
+
+  const dang = (state === 'play') ? inDanger() : null;
+  if (mover) {
+    const bot = mover.level * BH;
+    const h2 = dang ? (220) : mover.hue;
+    drawBox(mover.x, mover.z, mover.w, mover.d, bot, bot + BH, h2, 1, combo >= 2);
+    if (dang) {
+      const s = w2s(mover.x + mover.w / 2, mover.z + mover.d / 2, bot + BH);
+      ctx.save(); ctx.globalAlpha = 0.9; ctx.fillStyle = '#ff5a6a'; ctx.font = '900 ' + (18 * VS) + 'px system-ui';
+      ctx.textAlign = 'center'; ctx.fillText('!', s.x, s.y - 16); ctx.restore();
+    }
+  }
+
+  for (const r of ripples) {
+    ctx.globalAlpha = clamp(r.a, 0, 1) * 0.9; ctx.strokeStyle = r.big ? '#ffd76a' : '#ffffff'; ctx.lineWidth = r.big ? 3 : 2;
+    const h = r.level * BH + BH;
+    const A = px(r.x - r.r, r.z - r.r, h), B = px(r.x + r.r, r.z - r.r, h), C = px(r.x + r.r, r.z + r.r, h), D = px(r.x - r.r, r.z + r.r, h);
+    ctx.beginPath(); ctx.moveTo(A.X, A.Y); ctx.lineTo(B.X, B.Y); ctx.lineTo(C.X, C.Y); ctx.lineTo(D.X, D.Y); ctx.closePath(); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  for (const s of sparks) { ctx.globalAlpha = clamp(s.a, 0, 1); ctx.fillStyle = `hsl(${s.hue} 92% 68%)`; ctx.fillRect(s.X - s.sz / 2, s.Y - s.sz / 2, s.sz, s.sz); }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ── 화면 좌표계 오버레이 ──
+  // 마스코트
+  if (state === 'play' || state === 'over') drawMascot();
+
+  // 방해물
+  for (const o of obstacles) drawObstacle(o, sx, sy);
+
+  // 다음 레벨 문턱 표시
+  if (state === 'play') {
+    const goalH = currentLevel * GOAL;
+    const y = H * anchorY + VS * (camLv * BH - (goalH * BH + BH * 0.6));
+    if (y > 30 && y < H - 10) {
+      ctx.save(); ctx.globalAlpha = 0.65; ctx.strokeStyle = '#ffd76a'; ctx.lineWidth = 1.3; ctx.setLineDash([7, 8]);
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#ffd76a'; ctx.font = '800 11px system-ui'; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+      ctx.fillText('LV ' + (currentLevel + 1 > 10 ? '★ 달' : currentLevel + 1), W - 12, y - 4);
+      ctx.restore();
+    }
+  }
+
+  if (flash > 0) { ctx.fillStyle = `rgba(255,255,255,${flash})`; ctx.fillRect(0, 0, W, H); }
+}
+
+function drawObstacle(o, sx, sy) {
+  const x = o.x + sx, y = o.y + sy;
+  ctx.save();
+  if (o.type === 'strike') {
+    if (o.phase === 'warn') {
+      const a = 0.3 + 0.25 * Math.sin(performance.now() / 60);
+      const grd = ctx.createLinearGradient(x, 0, x, H);
+      grd.addColorStop(0, `rgba(255,230,90,${a * 0.1})`); grd.addColorStop(0.5, `rgba(255,200,60,${a})`); grd.addColorStop(1, `rgba(255,230,90,${a * 0.1})`);
+      ctx.fillStyle = grd; ctx.fillRect(x - o.hitW / 2, 0, o.hitW, H);
+      ctx.fillStyle = `rgba(255,220,80,${a})`; ctx.font = (o.sz) + 'px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('⚡', x, y - o.sz * 0.7);
+    } else {
+      ctx.fillStyle = '#fff7c0'; ctx.fillRect(x - o.hitW / 2, 0, o.hitW, H);
+      ctx.shadowColor = '#ffe060'; ctx.shadowBlur = 30; ctx.fillStyle = '#fff';
+      ctx.font = (o.sz * 1.3) + 'px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⚡', x, y);
+    }
+  } else {
+    // 그림자/글로우
+    const gl = ctx.createRadialGradient(x, y, 0, x, y, o.sz);
+    gl.addColorStop(0, 'rgba(255,255,255,.18)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gl; ctx.fillRect(x - o.sz, y - o.sz, o.sz * 2, o.sz * 2);
+    ctx.font = (o.sz) + 'px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.globalAlpha = o.e === '👻' ? 0.82 : 1;
+    ctx.fillText(o.e, x, y);
+  }
+  ctx.restore();
+}
+
+/* ═══════════ loop ═══════════ */
+function frame(t) {
+  const dt = clamp((t - lastT) / 1000, 0, 0.05); lastT = t;
+  update(dt); render();
+  requestAnimationFrame(frame);
+}
+
+/* ═══════════ boot ═══════════ */
+resize();
+refreshPips();
+buildFoundation(1);
+for (let i = 1; i <= 5; i++) { const p = blocks[blocks.length - 1];
+  blocks.push({ x: p.x + rnd(-10, 10), z: p.z + rnd(-10, 10), w: BASE, d: BASE, level: i, hue: hueFor(i), sq: 0 }); }
+snapCam();
+updateHUD();
+$hud.style.opacity = '0';
+requestAnimationFrame(t => { lastT = t; requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>

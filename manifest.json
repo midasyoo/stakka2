@@ -1,0 +1,17 @@
+{
+  "name": "STAKKA 2 — 달까지 쌓아라",
+  "short_name": "STAKKA 2",
+  "description": "작은 별이 달을 만나러 하늘로 탑을 쌓아 올린다. 10개의 하늘 구역, 방해물을 피해 쌓아라.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "lang": "ko",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
