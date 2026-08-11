@@ -146,6 +146,7 @@
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp  = (a, b, t) => a + (b - a) * t;
 const rnd   = (a, b) => a + Math.random() * (b - a);
+const pick  = a => a[(Math.random() * a.length) | 0];
 
 /* ═══════════ canvas ═══════════ */
 const cvs = document.getElementById('c');
@@ -175,18 +176,19 @@ const GOAL = 6;                 // 레벨당 필요 층수 → 총 60층 = 달
 const hueFor = lv => (198 + lv * 5.5) % 360;
 
 /* ═══════════ 레벨 구성 (10) ═══════════ */
-// type: null(없음) | fly | walker | diag | rise | strike
+// 매 방해물은 출현 때마다 pats 에서 무작위 패턴 + 무작위 속도/크기/높이/방향으로 움직인다
+// 패턴: straight wave dive arc zigzag stalk rise driftRise drift hover strike
 const LV = [
-  { n:'동네 지붕',   h:'탭으로 블록을 쌓아 올려라',         obs:null,                                  top:'#2a5b9c', bot:'#6fb0e6' },
-  { n:'새들의 길',   h:'새가 지나갈 땐 — 쌓지 마!',         obs:{e:'🐦',type:'fly',   spd:135,sz:56,every:2.3}, top:'#276aa6', bot:'#7fb6e8' },
-  { n:'구름 바다',   h:'구름이 덮칠 때 기다려',             obs:{e:'☁️',type:'fly',   spd:78, sz:98,every:2.7}, top:'#3a6fb0', bot:'#a9c8e8' },
-  { n:'연의 축제',   h:'연을 피해 타이밍 맞춰',             obs:{e:'🪁',type:'diag',  spd:120,sz:64,every:2.1,vy:18}, top:'#345fa0', bot:'#9fc0e6' },
-  { n:'풍선 마을',   h:'풍선이 뜰 때 비켜!',                obs:{e:'🎈',type:'rise',  spd:0,  sz:58,every:2.0,vy:-46},top:'#5a4a9c', bot:'#c9a0e0' },
-  { n:'유령의 숲',   h:'유령이 스쳐갈 때 멈춰',             obs:{e:'👻',type:'fly',   spd:118,sz:60,every:1.9}, top:'#243a6b', bot:'#3a5a8c' },
-  { n:'구름 고양이', h:'고양이가 지나갈 때까지 기다려',     obs:{e:'🐱',type:'walker',spd:62, sz:66,every:2.9,pause:1.1}, top:'#1f3560', bot:'#3556a0' },
-  { n:'번개 구름',   h:'번개가 치는 순간 피해!',            obs:{e:'⚡',type:'strike',spd:0,  sz:62,every:2.2}, top:'#15173a', bot:'#2a2f60' },
-  { n:'유성우',      h:'유성을 피해 쌓아 올려',             obs:{e:'☄️',type:'diag',  spd:300,sz:54,every:1.4,vy:80}, top:'#0c1030', bot:'#1a2050' },
-  { n:'달의 곶',     h:'달님을 향해 — 마지막이다!',         obs:{e:'☄️',type:'diag',  spd:240,sz:52,every:1.15,vy:66},top:'#070a20', bot:'#10183c', final:true },
+  { n:'동네 지붕',   h:'탭으로 블록을 쌓아 올려라',         obs:null,                                                                     top:'#2a5b9c', bot:'#6fb0e6' },
+  { n:'새들의 길',   h:'새가 급강하할 수도 — 잘 봐!',       obs:{e:'🐦', spd:135, sz:56, every:2.3, pats:['wave','wave','dive','straight']},         top:'#276aa6', bot:'#7fb6e8' },
+  { n:'구름 바다',   h:'구름이 덮칠 때 기다려',             obs:{e:'☁️', spd:74,  sz:100,every:2.7, pats:['drift','straight','wave']},                  top:'#3a6fb0', bot:'#a9c8e8' },
+  { n:'연의 축제',   h:'연의 궤적을 읽어라',                obs:{e:'🪁', spd:120, sz:64, every:2.1, pats:['arc','zigzag']},                            top:'#345fa0', bot:'#9fc0e6' },
+  { n:'풍선 마을',   h:'풍선이 뜰 때 비켜!',                obs:{e:'🎈', spd:30,  sz:58, every:2.0, pats:['rise','driftRise'], vy:-48},                  top:'#5a4a9c', bot:'#c9a0e0' },
+  { n:'유령의 숲',   h:'유령은 예측 불가 — 집중해',         obs:{e:'👻', spd:108, sz:60, every:1.9, pats:['drift','hover','wave']},                     top:'#243a6b', bot:'#3a5a8c' },
+  { n:'구름 고양이', h:'고양이가扑힐 때 숨죽여!',            obs:{e:'🐱', spd:64,  sz:66, every:2.9, pats:['stalk','stalk','straight']},                  top:'#1f3560', bot:'#3556a0' },
+  { n:'번개 구름',   h:'번개가 치는 순간 피해!',            obs:{e:'⚡', spd:0,   sz:62, every:2.2, pats:['strike']},                                    top:'#15173a', bot:'#2a2f60' },
+  { n:'유성우',      h:'유성이 쏟아진다 — 틈을 노려라',     obs:{e:'☄️', spd:300, sz:54, every:1.4, pats:['arc'], burst:0.45, vy:80},                    top:'#0c1030', bot:'#1a2050' },
+  { n:'달의 곶',     h:'달님을 향해 — 마지막이다!',         obs:{e:'☄️', spd:250, sz:52, every:1.1, pats:['arc'], burst:0.55, vy:66},                    top:'#070a20', bot:'#10183c', final:true },
 ];
 
 /* ═══════════ state ═══════════ */
@@ -199,7 +201,7 @@ let maxLevel = load('stakka2.maxlevel', 1);
 let muted = load('stakka2.mute', 0) === 1;
 let camX = 0, camY = 0, camLv = 0, anchorY = ANCHOR_MENU;
 let shake = 0, flash = 0, overAt = 0, lastT = 0;
-let obsTimer = 0, bannerUntil = 0;
+let obsTimer = 0, obsNext = 0, bannerUntil = 0;
 let mascot = { mood:'idle', bounce:0, spin:0, sweat:0 };
 
 function load(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : (parseInt(v, 10) || 0); } catch (e) { return d; } }
@@ -284,7 +286,7 @@ function startLevel(level) {
   currentLevel = clamp(level, 1, 10);
   buildFoundation(currentLevel);
   debris = []; ripples = []; sparks = []; obstacles = [];
-  combo = 0; mover = null; shake = 0; flash = 0; obsTimer = 0;
+  combo = 0; mover = null; shake = 0; flash = 0; obsTimer = 0; obsNext = 0;
   score = blocks[blocks.length - 1].level;
   snapCam();
   spawn();
@@ -385,7 +387,7 @@ function place() {
     currentLevel++;
     maxLevel = Math.max(maxLevel, currentLevel);
     save('stakka2.maxlevel', maxLevel);
-    obstacles = []; obsTimer = 0;
+    obstacles = []; obsTimer = 0; obsNext = 0;
     flash = 0.4; shake = Math.max(shake, 6);
     sfxLevel(); buzz([20, 40, 60]);
     updateHUD();
@@ -450,61 +452,112 @@ function topCenterScreen() {
 function spawnObs() {
   const cfg = LV[currentLevel - 1].obs;
   if (!cfg) return;
-  const fromLeft = Math.random() < 0.5;
-  const o = { e: cfg.e, sz: cfg.sz, type: cfg.type, t: 0, active: true, hitW: cfg.sz * 0.78 };
   const tc = topCenterScreen();
-  if (cfg.type === 'strike') {
-    o.x = rnd(W * 0.18, W * 0.82); o.y = tc.y; o.phase = 'warn'; o.tw = 0.75; o.hitW = cfg.sz * 1.5;
-  } else if (cfg.type === 'rise') {
-    o.x = rnd(W * 0.15, W * 0.85); o.y = H + cfg.sz; o.vx = rnd(-12, 12); o.vy = cfg.vy;
-  } else if (cfg.type === 'diag') {
-    o.x = fromLeft ? -cfg.sz : W + cfg.sz; o.y = tc.y - 240;
-    o.vx = (fromLeft ? 1 : -1) * cfg.spd; o.vy = cfg.vy || 40;
-  } else if (cfg.type === 'walker') {
-    o.x = fromLeft ? -cfg.sz : W + cfg.sz; o.y = tc.y; o.vx = (fromLeft ? 1 : -1) * cfg.spd;
-    o.pauseT = cfg.pause; o.pausing = 0;
-  } else { // fly
-    o.x = fromLeft ? -cfg.sz : W + cfg.sz; o.y = tc.y; o.vx = (fromLeft ? 1 : -1) * cfg.spd;
+  // 동시 출현(버스트) — 유성/연이 여러 개 몰려온다
+  let count = 1;
+  if (cfg.burst && Math.random() < cfg.burst) count = 2 + (Math.random() < 0.4 ? 1 : 0);
+  for (let k = 0; k < count; k++) spawnOne(cfg, tc, k * rnd(0.12, 0.3));
+}
+
+function spawnOne(cfg, tc, delay) {
+  const side = Math.random() < 0.5 ? 1 : -1;             // 1=좌→우, -1=우→좌
+  const sm = rnd(0.82, 1.22);                            // 크기 변동
+  const vm = rnd(0.75, 1.4) * (1 + currentLevel * 0.02); // 속도 변동 + 레벨 가속
+  const sz = cfg.sz * sm;
+  const baseY = tc.y + rnd(-VS * 30, VS * 22);           // 높이 변동
+  const pat = cfg.pats ? pick(cfg.pats) : 'straight';
+  const spd = (cfg.spd || 0) * vm;
+  const o = { e: cfg.e, sz, pat, t: -delay, active: true, hitW: sz * 0.72, baseY, side };
+  const startX = side > 0 ? -sz * 1.6 : W + sz * 1.6;
+
+  if (pat === 'strike') {
+    o.x = rnd(W * 0.16, W * 0.84); o.y = tc.y; o.phase = 'idle'; o.tw = rnd(0.55, 0.95);
+    o.double = Math.random() < 0.28; o.hitW = sz * 1.4; obstacles.push(o); return;
   }
+  o.x = startX; o.ox = startX; o.y = baseY; o.vx = side * spd; o.vy = 0;
+
+  if (pat === 'wave')            { o.amp = rnd(16, 38); o.freq = rnd(3.5, 6.5); o.ph = rnd(0, 6.28); }
+  else if (pat === 'dive')       { o.phase = 'cruise'; o.diveAt = rnd(0.5, 1.3); o.vy = 0; }
+  else if (pat === 'arc')        { o.y = baseY - VS * 120; o.vy = (cfg.vy || 50) * rnd(0.7, 1.3); o.grav = 360; o.trail = []; }
+  else if (pat === 'zigzag')     { o.ampX = rnd(18, 34); o.freqX = rnd(3, 5.5); o.phx = rnd(0, 6.28); }
+  else if (pat === 'stalk')      { o.phase = 'creep'; o.dashAt = rnd(0.8, 1.5); o.vx = side * spd * 0.38; o.baseVx = side * spd * 1.8; }
+  else if (pat === 'rise')       { o.y = H + sz; o.vy = (cfg.vy || -50) * vm; o.vx = rnd(-22, 22); }
+  else if (pat === 'driftRise')  { o.y = H + sz; o.vy = (cfg.vy || -50) * vm; o.ampX = rnd(18, 38); o.freqX = rnd(2, 4); o.phx = rnd(0, 6.28); }
+  else if (pat === 'drift')      { o.vy = rnd(-26, 26); o.jit = rnd(0, 6.28); }
+  else if (pat === 'hover')      { o.x = o.ox = rnd(W * 0.28, W * 0.72); o.leaveAt = rnd(1.1, 2.0); o.amp = rnd(10, 22); o.freq = rnd(3, 5.5); o.ph = rnd(0, 6.28); o.exited = false; }
   obstacles.push(o);
 }
 
 function updateObs(dt) {
   const cfg = LV[currentLevel - 1].obs;
-  if (cfg && state === 'play' && performance.now() > bannerUntil - 1400) {
+  if (cfg && state === 'play' && performance.now() > bannerUntil - 1200) {
     obsTimer += dt;
-    if (obsTimer >= cfg.every) { obsTimer = 0; spawnObs(); }
+    if (obsTimer >= obsNext) { obsTimer = 0; obsNext = cfg.every * rnd(0.62, 1.25); spawnObs(); }
   }
   const tc = topCenterScreen();
   for (let i = obstacles.length - 1; i >= 0; i--) {
     const o = obstacles[i]; o.t += dt;
-    if (o.type === 'strike') {
-      o.y = tc.y;
-      if (o.phase === 'warn') { o.tw -= dt; if (o.tw <= 0) { o.phase = 'strike'; o.ts = 0.32; } }
-      else if (o.phase === 'strike') { o.ts -= dt; if (o.ts <= 0) o.active = false; }
-    } else if (o.type === 'fly' || o.type === 'walker') {
-      o.y = tc.y;
-      if (o.type === 'walker' && o.pausing > 0) { o.pausing -= dt; }
-      else { o.x += o.vx * dt; if (o.type === 'walker' && Math.abs(o.x - W / 2) < 14 && o.pausing <= 0 && o.pauseT) o.pausing = o.pauseT; }
-    } else { // diag / rise
-      o.x += o.vx * dt; o.y += o.vy * dt;
+    if (o.t < 0) continue;                       // 지연 출현 대기
+    switch (o.pat) {
+      case 'strike':
+        o.y = tc.y;
+        if (o.phase === 'idle')       { o.tw -= dt; if (o.tw <= 0) { o.phase = 'strike'; o.ts = 0.30; } }
+        else if (o.phase === 'strike'){ o.ts -= dt; if (o.ts <= 0) o.active = false; }
+        break;
+      case 'wave':
+        o.x += o.vx * dt; o.y = o.baseY + Math.sin(o.t * o.freq + o.ph) * o.amp; o.flap = Math.sin(o.t * 18);
+        break;
+      case 'dive':
+        o.x += o.vx * dt;
+        if (o.phase === 'cruise')      { o.y = o.baseY + Math.sin(o.t * 4) * 4; if (o.t > o.diveAt) { o.phase = 'dive'; o.vy = 60; } }
+        else if (o.phase === 'dive')   { o.vy += 1000 * dt; o.y += o.vy * dt; if (o.y > tc.y + o.sz * 0.2) { o.phase = 'recover'; o.vy = -720; } }
+        else if (o.phase === 'recover'){ o.y += o.vy * dt; if (o.y < o.baseY) { o.y = o.baseY; o.phase = 'cruise'; } }
+        break;
+      case 'arc':
+        o.x += o.vx * dt; o.vy += o.grav * dt; o.y += o.vy * dt;
+        o.trail.push({ x: o.x, y: o.y }); if (o.trail.length > 8) o.trail.shift();
+        break;
+      case 'zigzag':
+        o.ox += o.vx * dt; o.x = o.ox + Math.sin(o.t * o.freqX + o.phx) * o.ampX;
+        break;
+      case 'stalk':
+        o.x += o.vx * dt;
+        if (o.phase === 'creep' && o.t > o.dashAt) { o.phase = 'dash'; o.vx = o.baseVx; o.squish = 1; }
+        if (o.squish > 0) o.squish = Math.max(0, o.squish - dt * 4);
+        break;
+      case 'rise':
+        o.y += o.vy * dt; o.x += o.vx * dt; o.bob = Math.sin(o.t * 3) * 0.06;
+        break;
+      case 'driftRise':
+        o.ox += (o.vx || 0) * dt; o.y += o.vy * dt; o.x = o.ox + Math.sin(o.t * o.freqX + o.phx) * o.ampX;
+        break;
+      case 'drift':
+        o.jit += dt; o.vy += Math.sin(o.jit * 2.3) * 60 * dt; o.vy = clamp(o.vy, -70, 70);
+        o.x += o.vx * dt; o.y += o.vy * dt; o.y = clamp(o.y, tc.y - o.sz * 2.4, tc.y + o.sz * 1.2);
+        o.flick = 0.55 + 0.3 * Math.abs(Math.sin(o.t * 2));
+        break;
+      case 'hover':
+        if (!o.exited) {
+          o.y = o.baseY + Math.sin(o.t * o.freq + o.ph) * o.amp;
+          if (o.t > o.leaveAt) { o.exited = true; o.vx = (o.x < W / 2 ? -1 : 1) * 260; o.vy = 0; }
+        } else { o.x += o.vx * dt; }
+        o.flick = 0.5 + 0.35 * Math.abs(Math.sin(o.t * 2.4));
+        break;
+      default: o.x += o.vx * dt;                       // straight
     }
-    if (!o.active || o.x < -160 || o.x > W + 160 || o.y < -320 || o.y > H + 320) obstacles.splice(i, 1);
+    if (!o.active || o.x < -200 || o.x > W + 200 || o.y < -360 || o.y > H + 360) obstacles.splice(i, 1);
   }
 }
 
+function colX(o, m) { const ox1 = o.x - o.hitW / 2, ox2 = o.x + o.hitW / 2; return ox2 > m.minX && ox1 < m.maxX; }
 function inDanger() {
   if (!mover) return null;
   const m = moverExt(); if (!m) return null;
   const tc = topCenterScreen();
   for (const o of obstacles) {
-    if (!o.active) continue;
-    if (o.type === 'strike' && o.phase !== 'strike') continue;
-    let nearY = true;
-    if (o.type === 'diag' || o.type === 'rise') nearY = Math.abs(o.y - tc.y) < o.sz;
-    if (!nearY) continue;
-    const ox1 = o.x - o.hitW / 2, ox2 = o.x + o.hitW / 2;
-    if (ox2 > m.minX && ox1 < m.maxX) return o;
+    if (!o.active || o.t < 0) continue;
+    if (o.pat === 'strike') { if (o.phase === 'strike' && colX(o, m)) return o; }
+    else if (Math.abs(o.y - tc.y) <= o.sz && colX(o, m)) return o;   // 탑 꼭대기 수직 밴드 + 가로 겹침
   }
   return null;
 }
@@ -756,30 +809,52 @@ function render() {
 }
 
 function drawObstacle(o, sx, sy) {
-  const x = o.x + sx, y = o.y + sy;
   ctx.save();
-  if (o.type === 'strike') {
-    if (o.phase === 'warn') {
-      const a = 0.3 + 0.25 * Math.sin(performance.now() / 60);
-      const grd = ctx.createLinearGradient(x, 0, x, H);
-      grd.addColorStop(0, `rgba(255,230,90,${a * 0.1})`); grd.addColorStop(0.5, `rgba(255,200,60,${a})`); grd.addColorStop(1, `rgba(255,230,90,${a * 0.1})`);
-      ctx.fillStyle = grd; ctx.fillRect(x - o.hitW / 2, 0, o.hitW, H);
-      ctx.fillStyle = `rgba(255,220,80,${a})`; ctx.font = (o.sz) + 'px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('⚡', x, y - o.sz * 0.7);
-    } else {
-      ctx.fillStyle = '#fff7c0'; ctx.fillRect(x - o.hitW / 2, 0, o.hitW, H);
-      ctx.shadowColor = '#ffe060'; ctx.shadowBlur = 30; ctx.fillStyle = '#fff';
-      ctx.font = (o.sz * 1.3) + 'px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⚡', x, y);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const px = o.x + sx, py = o.y + sy;
+
+  if (o.pat === 'strike') {
+    if (o.phase === 'idle') {                                    // 경고
+      const a = 0.3 + 0.25 * Math.sin(performance.now() / 55);
+      const grd = ctx.createLinearGradient(px, 0, px, H);
+      grd.addColorStop(0, `rgba(255,230,90,${a*0.1})`); grd.addColorStop(0.5, `rgba(255,200,60,${a})`); grd.addColorStop(1, `rgba(255,230,90,${a*0.1})`);
+      ctx.fillStyle = grd; ctx.fillRect(px - o.hitW / 2, 0, o.hitW, H);
+      ctx.fillStyle = `rgba(255,220,80,${a})`; ctx.font = o.sz + 'px system-ui'; ctx.fillText('⚡', px, py - o.sz * 0.7);
+    } else {                                                     // 타격
+      ctx.fillStyle = '#fff7c0'; ctx.fillRect(px - o.hitW / 2, 0, o.hitW, H);
+      ctx.shadowColor = '#ffe060'; ctx.shadowBlur = 34; ctx.fillStyle = '#fff';
+      ctx.font = (o.sz * 1.35) + 'px system-ui'; ctx.fillText('⚡', px, py);
     }
-  } else {
-    // 그림자/글로우
-    const gl = ctx.createRadialGradient(x, y, 0, x, y, o.sz);
-    gl.addColorStop(0, 'rgba(255,255,255,.18)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = gl; ctx.fillRect(x - o.sz, y - o.sz, o.sz * 2, o.sz * 2);
-    ctx.font = (o.sz) + 'px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.globalAlpha = o.e === '👻' ? 0.82 : 1;
-    ctx.fillText(o.e, x, y);
+    ctx.restore(); return;
   }
+
+  // 유성/연 꼬리
+  if (o.pat === 'arc' && o.trail) {
+    for (let i = 0; i < o.trail.length; i++) {
+      const t = o.trail[i], k = i / o.trail.length;
+      ctx.globalAlpha = k * 0.4; ctx.font = (o.sz * (0.4 + k * 0.6)) + 'px system-ui';
+      ctx.fillText(o.e, t.x + sx, t.y + sy);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // 글로우
+  const gl = ctx.createRadialGradient(px, py, 0, px, py, o.sz);
+  gl.addColorStop(0, 'rgba(255,255,255,.16)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gl; ctx.fillRect(px - o.sz, py - o.sz, o.sz * 2, o.sz * 2);
+
+  ctx.font = o.sz + 'px system-ui';
+  ctx.globalAlpha = (o.e === '👻') ? (o.flick || 0.7) : 1;
+
+  // 퍼덕임(새) / 급강하 회전 / 대시 늘어남(고양이) / 떠오름 기울임(풍선)
+  let sx2 = 1, sy2 = 1, rot = 0;
+  if (o.pat === 'wave')      { sy2 = 0.82 + 0.18 * Math.abs(o.flap || 0); sx2 = 1.12 - 0.12 * Math.abs(o.flap||0); }
+  else if (o.pat === 'dive') { rot = (o.phase === 'recover') ? -0.5 : (o.phase === 'dive' ? 0.7 : 0); }
+  else if (o.pat === 'stalk'){ sx2 = 1 + (o.squish || 0) * 0.4; sy2 = 1 - (o.squish || 0) * 0.2; }
+  else if (o.pat === 'rise' || o.pat === 'driftRise') { rot = o.bob || 0; }
+
+  ctx.translate(px, py); ctx.scale(sx2, sy2); ctx.rotate(rot);
+  ctx.fillText(o.e, 0, 0);
   ctx.restore();
 }
 

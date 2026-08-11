@@ -60,7 +60,8 @@ ok(T.score===6,'score 6');
 /* 3. 장애물이 덮칠 때 place → hitFail(over) */
 // mover의 화면 중앙에 장애물 강제 배치
 const me = T.moverExt();
-T.obstacles.push({ e:'🐦', type:'fly', sz:56, active:true, hitW:44, x:me.cx, y:me.cy });
+// 새 판정: 탑 꼭대기 중심(tc.y) 밴드 안 + 가로 겹침이어야 위험
+T.obstacles.push({ e:'🐦', pat:'fly', t:1, sz:56, active:true, hitW:44, x:me.cx, y:T.topCenterScreen().y });
 ok(T.inDanger()!==null,'inDanger detects obstacle over mover');
 T.place();
 ok(T.state==='over','placing under obstacle → game over');
