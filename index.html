@@ -86,6 +86,10 @@
   #win .big{font-size:16px;font-weight:900;letter-spacing:6px;color:#ffd76a}
   #win .num{font-size:clamp(48px,15vw,76px);font-weight:900;letter-spacing:-3px;line-height:1;
     background:linear-gradient(180deg,#fff,#ffd76a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  #dbg{position:fixed;left:0;right:0;bottom:0;z-index:9;display:none;padding:8px 10px;
+    font:11px/1.45 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-all;
+    background:rgba(0,0,0,.78);color:#8dffb0;border-top:1px solid rgba(255,255,255,.2)}
+  #dbg.on{display:block}
   #mute{position:fixed;right:14px;top:calc(env(safe-area-inset-top,0px) + 14px);
     width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;
     font-size:18px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
@@ -137,6 +141,7 @@
   </div>
 </div>
 <div id="mute">🔊</div>
+<div id="dbg"></div>
 
 <script>
 (() => {
@@ -174,6 +179,9 @@ const VIEW_N = 26;
 const ANCHOR = 0.66, ANCHOR_MENU = 0.92;
 const GOAL = 6;                 // 레벨당 필요 층수 → 총 60층 = 달
 const hueFor = lv => (198 + lv * 5.5) % 360;
+// 위험 경고색. 블록 기본색이 hue 198 부터 층당 +5.5 로 올라가므로 파랑 계열(220)은
+// 저층에서 기본색과 겹쳐 경고가 안 보인다. 빨강으로 두어 전 레벨에서 구분되게 한다.
+const DANGER_HUE = 0;
 
 /* ═══════════ 레벨 구성 (10) ═══════════ */
 // 매 방해물은 출현 때마다 pats 에서 무작위 패턴 + 무작위 속도/크기/높이/방향으로 움직인다
@@ -295,7 +303,7 @@ function startLevel(level) {
   $combo.classList.remove('on');
 }
 function startGame() {
-  startLevel(1);
+  startLevel(FORCE_LV || 1);
   state = 'play';
   $menu.classList.remove('show'); $over.classList.remove('show'); $win.classList.remove('show');
   $hud.style.opacity = '1';
@@ -596,6 +604,17 @@ function w2s(x, z, h) {
 }
 function px(x, z, h) { return { X: x - z, Y: (x + z) * IY - h }; }
 
+/* ═══════════ fonts ═══════════ */
+// 주의: 캔버스 ctx.font 에 'system-ui' 를 쓰면 iOS Safari 가 파싱에 실패해
+// 대입이 무시되고 기본값(10px sans-serif)이 그대로 남는다 → 이모지가 안 보인다.
+// 모든 브라우저가 파싱 가능한 실제 패밀리 스택만 사용한다.
+const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla","EmojiOne Color",sans-serif';
+const UI_FONT    = 'sans-serif';
+function setFont(size, family, weight) {
+  const s = Math.max(1, size).toFixed(1);
+  ctx.font = (weight ? weight + ' ' : '') + s + 'px ' + family;
+}
+
 /* ═══════════ render helpers ═══════════ */
 function quad(a, b, c, d, fill) {
   ctx.beginPath(); ctx.moveTo(a.X, a.Y); ctx.lineTo(b.X, b.Y); ctx.lineTo(c.X, c.Y); ctx.lineTo(d.X, d.Y);
@@ -764,11 +783,11 @@ function render() {
   const dang = (state === 'play') ? inDanger() : null;
   if (mover) {
     const bot = mover.level * BH;
-    const h2 = dang ? (220) : mover.hue;
+    const h2 = dang ? DANGER_HUE : mover.hue;
     drawBox(mover.x, mover.z, mover.w, mover.d, bot, bot + BH, h2, 1, combo >= 2);
     if (dang) {
       const s = w2s(mover.x + mover.w / 2, mover.z + mover.d / 2, bot + BH);
-      ctx.save(); ctx.globalAlpha = 0.9; ctx.fillStyle = '#ff5a6a'; ctx.font = '900 ' + (18 * VS) + 'px system-ui';
+      ctx.save(); ctx.globalAlpha = 0.9; ctx.fillStyle = '#ff5a6a'; setFont(18 * VS, UI_FONT, 900);
       ctx.textAlign = 'center'; ctx.fillText('!', s.x, s.y - 16); ctx.restore();
     }
   }
@@ -799,7 +818,7 @@ function render() {
     if (y > 30 && y < H - 10) {
       ctx.save(); ctx.globalAlpha = 0.65; ctx.strokeStyle = '#ffd76a'; ctx.lineWidth = 1.3; ctx.setLineDash([7, 8]);
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = '#ffd76a'; ctx.font = '800 11px system-ui'; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+      ctx.fillStyle = '#ffd76a'; setFont(11, UI_FONT, 800); ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
       ctx.fillText('LV ' + (currentLevel + 1 > 10 ? '★ 달' : currentLevel + 1), W - 12, y - 4);
       ctx.restore();
     }
@@ -819,20 +838,21 @@ function drawObstacle(o, sx, sy) {
       const grd = ctx.createLinearGradient(px, 0, px, H);
       grd.addColorStop(0, `rgba(255,230,90,${a*0.1})`); grd.addColorStop(0.5, `rgba(255,200,60,${a})`); grd.addColorStop(1, `rgba(255,230,90,${a*0.1})`);
       ctx.fillStyle = grd; ctx.fillRect(px - o.hitW / 2, 0, o.hitW, H);
-      ctx.fillStyle = `rgba(255,220,80,${a})`; ctx.font = o.sz + 'px system-ui'; ctx.fillText('⚡', px, py - o.sz * 0.7);
+      ctx.fillStyle = `rgba(255,220,80,${a})`; setFont(o.sz, EMOJI_FONT); ctx.fillText('⚡', px, py - o.sz * 0.7);
     } else {                                                     // 타격
       ctx.fillStyle = '#fff7c0'; ctx.fillRect(px - o.hitW / 2, 0, o.hitW, H);
       ctx.shadowColor = '#ffe060'; ctx.shadowBlur = 34; ctx.fillStyle = '#fff';
-      ctx.font = (o.sz * 1.35) + 'px system-ui'; ctx.fillText('⚡', px, py);
+      setFont(o.sz * 1.35, EMOJI_FONT); ctx.fillText('⚡', px, py);
     }
     ctx.restore(); return;
   }
 
   // 유성/연 꼬리
   if (o.pat === 'arc' && o.trail) {
+    ctx.fillStyle = '#fff';                       // 이전 프레임의 fillStyle 을 물려받지 않도록 초기화
     for (let i = 0; i < o.trail.length; i++) {
       const t = o.trail[i], k = i / o.trail.length;
-      ctx.globalAlpha = k * 0.4; ctx.font = (o.sz * (0.4 + k * 0.6)) + 'px system-ui';
+      ctx.globalAlpha = k * 0.4; setFont(o.sz * (0.4 + k * 0.6), EMOJI_FONT);
       ctx.fillText(o.e, t.x + sx, t.y + sy);
     }
     ctx.globalAlpha = 1;
@@ -843,7 +863,10 @@ function drawObstacle(o, sx, sy) {
   gl.addColorStop(0, 'rgba(255,255,255,.16)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = gl; ctx.fillRect(px - o.sz, py - o.sz, o.sz * 2, o.sz * 2);
 
-  ctx.font = o.sz + 'px system-ui';
+  // 글로우 그라디언트가 fillStyle 에 남아 있으면 이모지가 그라디언트로 칠해진다.
+  // translate 이후엔 그라디언트 중심이 화면 밖으로 밀려나 완전 투명(=글리프 증발)이 되므로 반드시 되돌린다.
+  ctx.fillStyle = '#fff';
+  setFont(o.sz, EMOJI_FONT);
   ctx.globalAlpha = (o.e === '👻') ? (o.flick || 0.7) : 1;
 
   // 퍼덕임(새) / 급강하 회전 / 대시 늘어남(고양이) / 떠오름 기울임(풍선)
@@ -858,10 +881,75 @@ function drawObstacle(o, sx, sy) {
   ctx.restore();
 }
 
+/* ═══════════ 진단 오버레이 (?debug=1) ═══════════ */
+const BUILD = 'B5-danger-hue';
+const QS = (typeof location !== 'undefined' && location.search) || '';   // 테스트 샌드박스엔 location 이 없다
+const DEBUG = /[?&]debug=1/.test(QS);
+// ?lv=4 → 해당 레벨부터 시작 (테스트용). LV1 은 원래 방해물이 없다.
+const FORCE_LV = (() => { const m = /[?&]lv=(\d+)/.exec(QS); return m ? clamp(parseInt(m[1], 10) || 1, 1, 10) : 0; })();
+const $dbg = $('dbg');
+let dbgAcc = 0;
+if (DEBUG) $dbg.classList.add('on');
+function drawDebug(dt) {
+  dbgAcc += dt; if (dbgAcc < 0.2) return; dbgAcc = 0;
+  // 폰트가 실제로 먹었는지 읽어서 확인 (실패하면 브라우저가 이전 값을 유지한다)
+  setFont(56, EMOJI_FONT);
+  const fontRead = ctx.font;
+  const cfg = LV[currentLevel - 1].obs;
+  const emoji = cfg ? cfg.e : '-';
+  const mw = cfg ? ctx.measureText(emoji).width.toFixed(1) : '-';
+  const tc = topCenterScreen();
+  const o = obstacles[0];
+  $dbg.textContent =
+    'BUILD ' + BUILD + '\n' +
+    'W' + W.toFixed(0) + ' H' + H.toFixed(0) + ' dpr' + DPR + ' VS' + VS.toFixed(2) + '\n' +
+    'state=' + state + ' LV' + currentLevel + ' obs=' + obstacles.length + ' towerTopY=' + tc.y.toFixed(0) + '\n' +
+    'font=' + fontRead + '\n' +
+    'measure(' + emoji + ')=' + mw + '\n' +
+    (o ? ('o0 ' + o.pat + ' x=' + o.x.toFixed(0) + ' y=' + o.y.toFixed(0) + ' sz=' + o.sz.toFixed(0) + ' t=' + o.t.toFixed(1))
+       : 'o0 (없음)');
+}
+
+/* ═══════════ 렌더 경로 프로브 (?probe=1) ═══════════ */
+// 이모지를 3가지 경로로 같은 줄에 그린다. 어느 것이 사라지는지로 원인을 특정한다.
+//  A(왼쪽)  solid fillStyle + 변환 없음
+//  B(가운데) solid fillStyle + translate
+//  C(오른쪽) 글로우 그라디언트를 fillStyle 에 남긴 채 translate  ← 수정 전 경로
+const PROBE = /[?&]probe=1/.test(QS);
+function drawProbe() {
+  const cfg = LV[currentLevel - 1].obs;
+  const e = cfg ? cfg.e : '🐦';
+  const sz = 44, y = H * 0.30;
+  ctx.save();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  setFont(sz, EMOJI_FONT);
+
+  ctx.fillStyle = '#fff';
+  ctx.fillText(e, W * 0.25, y);                                   // A
+
+  ctx.save(); ctx.fillStyle = '#fff';
+  ctx.translate(W * 0.5, y); ctx.fillText(e, 0, 0); ctx.restore(); // B
+
+  ctx.save();
+  const gx = W * 0.75;
+  const gl = ctx.createRadialGradient(gx, y, 0, gx, y, sz);
+  gl.addColorStop(0, 'rgba(255,255,255,.16)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gl; ctx.fillRect(gx - sz, y - sz, sz * 2, sz * 2);
+  ctx.translate(gx, y); ctx.fillText(e, 0, 0); ctx.restore();      // C
+
+  // 기준선 — 캔버스 자체가 그려지는지 확인용
+  ctx.fillStyle = '#ff3b6b'; ctx.fillRect(W * 0.25 - 20, y + 34, 40, 3);
+  ctx.fillStyle = '#3bff6b'; ctx.fillRect(W * 0.5 - 20, y + 34, 40, 3);
+  ctx.fillStyle = '#3b9bff'; ctx.fillRect(W * 0.75 - 20, y + 34, 40, 3);
+  ctx.restore();
+}
+
 /* ═══════════ loop ═══════════ */
 function frame(t) {
   const dt = clamp((t - lastT) / 1000, 0, 0.05); lastT = t;
   update(dt); render();
+  if (PROBE) drawProbe();
+  if (DEBUG) drawDebug(dt);
   requestAnimationFrame(frame);
 }
 
