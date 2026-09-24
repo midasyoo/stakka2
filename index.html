@@ -58,6 +58,9 @@
     padding:0 26px;text-align:center;opacity:0;pointer-events:none;transition:opacity .28s ease;
     background:radial-gradient(ellipse 80% 46% at 50% 46%,rgba(9,13,26,.93) 0%,rgba(9,13,26,.62) 58%,rgba(9,13,26,0) 84%)}
   .panel.show{opacity:1}
+  /* 숨겨진 패널의 버튼이 화면 한가운데서 탭을 가로채던 문제 —
+     .btn 은 pointer-events:auto 라 부모의 none 을 무시한다. 보일 때만 누르게 한다. */
+  .panel:not(.show) .btn{pointer-events:none}
   #menu{padding-bottom:6vh}
   #over{padding-bottom:14vh}
   #win{padding-bottom:10vh}
@@ -94,6 +97,44 @@
     width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;
     font-size:18px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
     cursor:pointer;opacity:.5;z-index:5}
+  /* ───────── 데스크탑 자동 적응 ─────────
+     같은 파일 하나가 기기를 보고 레이아웃을 바꾼다.
+     스마트폰: 전체 화면 터치 (아래 규칙이 적용되지 않음)
+     데스크탑: 세로 스테이지를 가운데 두고 남는 폭은 배경으로 */
+  body.desk{--stageW:min(600px,58vh);
+    background:
+      radial-gradient(ellipse 70% 55% at 50% 0%,#1a2748 0%,transparent 72%),
+      radial-gradient(ellipse 80% 60% at 50% 100%,#101a34 0%,transparent 72%),
+      #060a15}
+  body.desk #c,body.desk .ui,body.desk #vignette{
+    right:auto;left:50%;width:var(--stageW);transform:translateX(-50%)}
+  body.desk #c{cursor:pointer;
+    box-shadow:0 0 0 1px rgba(255,255,255,.09),
+               0 30px 110px rgba(0,0,0,.72),
+               0 0 100px rgba(84,142,255,.15)}
+  body.desk #mute{right:calc(50% - var(--stageW)/2 + 14px)}
+  #deskHint{display:none;position:fixed;left:50%;bottom:16px;z-index:7;transform:translateX(-50%);
+    font-size:12px;font-weight:800;letter-spacing:2.5px;color:#8d9cc0;pointer-events:none;
+    white-space:nowrap;padding:7px 16px;border-radius:999px;
+    background:rgba(6,10,21,.72);border:1px solid rgba(255,255,255,.07);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  body.desk #deskHint{display:block}
+  #deskHint kbd{display:inline-block;padding:3px 9px;margin:0 3px;border-radius:7px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);
+    color:#cbd7f2;font-family:inherit;font-size:11px;font-weight:900;letter-spacing:1px}
+  /* ───────── 제작자 표기 (우측 상단) ───────── */
+  #credit{position:fixed;right:14px;top:calc(env(safe-area-inset-top,0px) + 12px);
+    z-index:6;text-align:right;pointer-events:none;line-height:1.25;
+    text-shadow:0 2px 7px rgba(0,0,0,.7),0 0 2px rgba(0,0,0,.5)}
+  #credit .by{font-size:12.5px;font-weight:900;color:#fff;letter-spacing:.2px}
+  #credit .mail{font-size:10.5px;font-weight:600;color:#c3cee6;margin-top:2px}
+  #credit .date{font-size:10.5px;font-weight:600;color:#c3cee6;margin-top:1px}
+  /* 표기가 우측 상단을 쓰므로 음소거 버튼은 그 아래로 */
+  #mute{top:calc(env(safe-area-inset-top,0px) + 66px)}
+  body.desk #credit{right:calc(50% - var(--stageW)/2 + 16px)}
+  body.desk #credit .by{font-size:16px}
+  body.desk #credit .mail,body.desk #credit .date{font-size:13px}
+  body.desk #mute{top:calc(env(safe-area-inset-top,0px) + 78px)}
 </style>
 </head>
 <body>
@@ -139,6 +180,11 @@
     <div class="lbl">10개의 하늘을 모두 통과했다</div>
     <div class="btn primary" id="btnAgain">다시 플레이</div>
   </div>
+</div>
+<div id="credit">
+  <div class="by">created by Yoon-Sik Yoo, Ph.D.</div>
+  <div class="mail">midasyoo@etri.re.kr</div>
+  <div class="date">2026.08.13</div>
 </div>
 <div id="mute">🔊</div>
 <div id="dbg"></div>
@@ -963,6 +1009,50 @@ snapCam();
 updateHUD();
 $hud.style.opacity = '0';
 requestAnimationFrame(t => { lastT = t; requestAnimationFrame(frame); });
+})();
+</script>
+<div id="deskHint"><kbd>클릭</kbd> 또는 <kbd>Space</kbd> 로 쌓기</div>
+<script>
+/* ───────── 데스크탑 / 스마트폰 자동 적응 ─────────
+   파일 하나가 접속 기기를 감지해 레이아웃과 안내 문구를 바꾼다.
+   게임 로직은 건드리지 않는다 — 캔버스의 레이아웃 크기만 달라지고,
+   기존 resize() 가 그 크기를 그대로 읽어 간다. */
+(function () {
+  'use strict';
+  var fine = window.matchMedia('(hover:hover) and (pointer:fine)');
+  var swapped = false;
+
+  function isDesk() { return fine.matches && window.innerWidth >= 760; }
+
+  // 안내 문구의 '탭'은 마우스 앞에서는 뜻이 통하지 않는다. 한 번만 바꾼다.
+  function swapCopy() {
+    if (swapped) return;
+    var root = document.querySelector('.ui');
+    if (!root) return;
+    swapped = true;
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), n, hits = [];
+    while ((n = w.nextNode())) { if (n.nodeValue.indexOf('탭') >= 0) hits.push(n); }
+    for (var i = 0; i < hits.length; i++) {
+      hits[i].nodeValue = hits[i].nodeValue
+        .replace(/탭해서/g, '클릭해서')
+        .replace(/탭으로/g, '클릭으로')
+        .replace(/탭/g, '클릭');
+    }
+  }
+
+  function apply() {
+    var desk = isDesk();
+    document.body.classList.toggle('desk', desk);
+    if (desk) swapCopy();
+    window.dispatchEvent(new Event('resize'));   // 게임이 새 캔버스 크기를 다시 읽게 한다
+  }
+
+  apply();
+  if (fine.addEventListener) fine.addEventListener('change', apply);
+  else if (fine.addListener) fine.addListener(apply);
+  window.addEventListener('resize', function () {
+    if (isDesk() !== document.body.classList.contains('desk')) apply();
+  }, { passive: true });
 })();
 </script>
 <!-- 방문 집계: https://midasyoo.github.io/stats.html · 수집 범위 https://midasyoo.github.io/privacy.html -->
