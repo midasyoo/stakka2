@@ -20,6 +20,13 @@
 
 ---
 
+## 홍보 영상 (1분)
+
+https://github.com/midasyoo/stakka/raw/main/stakka-trilogy-1min.mp4
+
+3부작을 한 편에 담은 소개 영상입니다 (내레이션·배경음 포함).
+원본과 제작 도구는 [1편 저장소](https://github.com/midasyoo/stakka/tree/main/tools/promo)에 있습니다.
+
 ## 게임 소개
 
 **STAKKA 1** 의 원터치 타워 쌓기를 베이스로, **스토리 모드** 가 더해진 속편이다.
